@@ -1,0 +1,45 @@
+-- =============================================================================
+-- Seleção de amostras: CASOS (com discinesia)
+-- =============================================================================
+-- Projeto  : Análise genética de discinesia induzida por levodopa - Mestrado
+-- Banco    : AMP-PD 2023 v4 release (1027)
+-- =============================================================================
+
+-- Critérios de inclusão:
+--   1. Raça autorreferida = 'White'  (homogeneidade genética da coorte)
+--   2. code_upd2401 > 0              (presença de discinesia, conforme MDS-UPDRS parte IV)
+--   3. Presença de WGS no biorepositório WB_DWGS
+
+SELECT
+    demo.participant_id,                              -- ID único do participante
+    demo.GUID,                                        -- Identificador global (Global Unique ID)
+    race,                                             -- Raça autorreferida
+    code_upd2401_time_spent_with_dyskinesias,         -- % do dia acordado com discinesia (0–4)
+    code_upd2402_functional_impact_of_dyskinesias     -- Impacto funcional da discinesia (0–4)
+
+FROM
+    `amp-pd-research.2023_v4release_1027.Demographics` demo,
+    `amp-pd-research.2023_v4release_1027.MDS_UPDRS_Part_IV` UPDRS
+
+WHERE
+    -- Join entre tabela demográfica e escala MDS-UPDRS parte IV
+    demo.participant_id = UPDRS.participant_id
+
+    -- CASO: algum grau de discinesia presente (escores 1–4)
+    AND code_upd2401_time_spent_with_dyskinesias > 0
+
+    -- Restrição de ancestralidade para reduzir estratificação populacional
+    AND race = 'White'
+
+    -- Garante que o participante possui dado de sequenciamento de genoma completo (WGS)
+    AND demo.participant_id IN (
+        SELECT participant_id
+        FROM `amp-pd-research.2023_v4release_1027_genomics_WB_DWGS.wgs_WB_DWGS_samples`
+    );
+
+-- =============================================================================
+-- Notas:
+--   - MDS-UPDRS parte IV, item 4.1: tempo com discinesia durante o dia
+--     0 = nenhuma  |  1 = <25%  |  2 = 25-50%  |  3 = 50-75%  |  4 = >75%
+--   - Resultado exportado para: ../data/raw/cases_raw.csv
+-- =============================================================================
